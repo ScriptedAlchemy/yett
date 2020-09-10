@@ -53,7 +53,7 @@ export const unblock = function(...scriptUrlsOrRegexes) {
         }
     }
 
-
+    const ric = window.requestIdleCallback || (cb => setTimeout(cb, 100));
     // Parse existing script tags with a marked type
     const tags = document.querySelectorAll(`script[type="${TYPE_ATTRIBUTE}"]`)
     for(let i = 0; i < tags.length; i++) {
@@ -64,23 +64,64 @@ export const unblock = function(...scriptUrlsOrRegexes) {
         }
     }
 
+    const lazyUnblock = (array, callback) => {
+        const reduceRight = array.reduceRight(
+          // eslint-disable-next-line no-unused-vars
+          (prev, current, index) => () => new Promise(resolve => ric(() => {
+              callback(current)
+              resolve(prev());
+          })),
+          () => null,
+        );
+        reduceRight()
+    }
+
     // Exclude 'whitelisted' scripts from the blacklist and append them to <head>
     let indexOffset = 0;
-    [...backupScripts.blacklisted].forEach(([script, type], index) => {
-        if(willBeUnblocked(script)) {
-            const scriptNode = document.createElement('script')
-            scriptNode.setAttribute('src', script.src)
-            scriptNode.setAttribute('type', type || 'application/javascript')
-            for(let key in script) {
-                if(key.startsWith("on")) {
-                    scriptNode[key] = script[key]
+
+    if (window.Promise) {
+        lazyUnblock([...backupScripts.blacklisted], function ([script, type], index) {
+            if (willBeUnblocked(script)) {
+                const scriptNode = document.createElement('script')
+                scriptNode.setAttribute('src', script.src)
+                scriptNode.setAttribute('type', type || 'application/javascript')
+                for (let key in script) {
+                    if (key.startsWith("on")) {
+                        scriptNode[key] = script[key]
+                    }
+                }
+                document.head.appendChild(scriptNode)
+                backupScripts.blacklisted.splice(index - indexOffset, 1)
+                indexOffset++
+            }
+        })
+    } else {
+        [...backupScripts.blacklisted].forEach(([script, type], index) => {
+            const unblockScripts = ([script, type], index)=> {
+                if (willBeUnblocked(script)) {
+                    const scriptNode = document.createElement('script')
+                    scriptNode.setAttribute('src', script.src)
+                    scriptNode.setAttribute('type', type || 'application/javascript')
+                    for (let key in script) {
+                        if (key.startsWith("on")) {
+                            scriptNode[key] = script[key]
+                        }
+                    }
+                    document.head.appendChild(scriptNode)
+                    backupScripts.blacklisted.splice(index - indexOffset, 1)
+                    indexOffset++
                 }
             }
-            document.head.appendChild(scriptNode)
-            backupScripts.blacklisted.splice(index - indexOffset, 1)
-            indexOffset++
-        }
-    })
+
+            ric(()=>{
+                unblockScripts([script, type], index)
+            })
+        })
+    }
+
+
+
+
 
     // Disconnect the observer if the blacklist is empty for performance reasons
     if(patterns.blacklist && patterns.blacklist.length < 1) {
