@@ -1,4 +1,4 @@
-import { TYPE_ATTRIBUTE } from './variables'
+import {TYPE_ATTRIBUTE} from './variables'
 import { isOnBlacklist } from './checks'
 
 const createElementBackup = document.createElement
@@ -7,6 +7,70 @@ const originalDescriptors = {
     src: Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src'),
     type: Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'type')
 }
+
+// function debounce(func, wait, immediate) {
+//     var timeout;
+//
+//     return function executedFunction() {
+//         var context = this;
+//         var args = arguments;
+//
+//         var later = function() {
+//             timeout = null;
+//             if (!immediate) func.apply(context, args);
+//         };
+//
+//         var callNow = immediate && !timeout;
+//
+//         clearTimeout(timeout);
+//
+//         timeout = setTimeout(later, wait);
+//
+//         if (callNow) func.apply(context, args);
+//     };
+// }
+//
+//
+// let docFrag
+// let supportsPrefetch
+// try {
+//     var relList = document.createElement('link').relList;
+//     supportsPrefetch = !!(relList && relList.supports && relList.supports('prefetch'));
+// } catch(e) {
+//     supportsPrefetch = false
+// }
+
+
+// if(document.createDocumentFragment) {
+//     docFrag = document.createDocumentFragment();
+// }
+// const runDebounce = debounce((current)=>{
+//     document.head.appendChild(current);
+//     docFrag = document.createDocumentFragment()
+// },supportsPrefetch ? 1000 : 4000)
+
+// const preloadBlockedResource = (src) => {
+//     try {
+//         if (window.PREVENT_PRELOAD) {
+//             if (window.PREVENT_PRELOAD.some(pattern => pattern.test(src))) {
+//                 return null
+//             }
+//         }
+//         var preloadLink = document.createElement("link");
+//         preloadLink.href = src
+//         preloadLink.rel = supportsPrefetch ? "prefetch" : "preload"
+//         preloadLink.as = "script";
+//         if (docFrag) {
+//             docFrag.appendChild(preloadLink);
+//             runDebounce(docFrag)
+//         } else {
+//             document.head.appendChild(preloadLink);
+//         }
+//     } catch (e) {
+//         console.error('Gate: Problem Preloading',e)
+//     }
+// }
+
 
 // Monkey patch the createElement method to prevent dynamic scripts from executing
 document.createElement = function(...args) {
@@ -25,6 +89,9 @@ document.createElement = function(...args) {
                 },
                 set(value) {
                     if(isOnBlacklist(value, scriptElt.type)) {
+                        // try {preloadBlockedResource(value)} catch(e) {
+                        //     //cannot preload
+                        // }
                         originalDescriptors.type.set.call(this, TYPE_ATTRIBUTE)
                     }
                     originalDescriptors.src.set.call(this, value)
