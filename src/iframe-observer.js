@@ -39,9 +39,12 @@ const iframeObserver = new MutationObserver(mutations => {
         }
     }
 })
-
-// Starts the monitoring
-iframeObserver.observe(document.documentElement, {
-    childList: true,
-    subtree: true
-})
+document.addEventListener('readystatechange', function () {
+    if (document.readyState === 'interactive') {
+        // Starts the monitoring
+        iframeObserver.observe(document.body, {
+            childList: true,
+            subtree: false
+        })
+    }
+});
